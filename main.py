@@ -1,3 +1,4 @@
+from sqlalchemy import desc
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -36,8 +37,15 @@ def create_employee(employee: schemas.EmployeeCreate, db: Session = Depends(get_
 
 # READ ALL
 @app.get("/employees/", response_model=list[schemas.EmployeeResponse])
-def get_employees(db: Session = Depends(get_db)):
-    return db.query(models.Employee).all()
+def get_employees(
+    skip: int = 0,
+    limit: int = 10,
+    db: Session = Depends(get_db)
+):
+    return db.query(models.Employee)\
+             .offset(skip)\
+             .limit(limit)\
+             .all()
 
 
 # READ BY ID
@@ -86,4 +94,19 @@ def delete_employee(emp_id: int, db: Session = Depends(get_db)):
 
     return {"message": f"Employee {emp_id} deleted successfully"}
 
-    
+@app.get("/employees/search/")
+def search_employee(name: str, db: Session = Depends(get_db)):
+
+    employees = db.query(models.Employee).filter(
+        models.Employee.name.contains(name)
+    ).all()
+
+    return employees
+
+
+@app.get("/employees/highest-salary")
+def highest_salary(db: Session = Depends(get_db)):
+
+    return db.query(models.Employee)\
+             .order_by(desc(models.Employee.salary))\
+             .all()
