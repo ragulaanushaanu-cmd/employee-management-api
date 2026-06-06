@@ -1,47 +1,42 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
+from typing import List
 
 from database import engine, get_db, Base
 from database_models import Employee
-from models import EmployeeCreate
+from models import EmployeeCreate, EmployeeResponse
 
 app = FastAPI()
 
+# Create tables (OK for learning projects)
 Base.metadata.create_all(bind=engine)
 
 
 @app.get("/")
 def greet():
-    return {"message": "Welcome to FastAPI"}
+    return {"message": "Welcome to FastAPI Employee Management API"}
 
 
-@app.get("/employees")
+# GET ALL EMPLOYEES
+@app.get("/employees", response_model=List[EmployeeResponse])
 def get_all_employees(db: Session = Depends(get_db)):
     return db.query(Employee).all()
 
 
-@app.get("/employee/{id}")
-def get_employee_by_id(
-    id: int,
-    db: Session = Depends(get_db)
-):
-    employee = (
-        db.query(Employee)
-        .filter(Employee.id == id)
-        .first()
-    )
+# GET EMPLOYEE BY ID
+@app.get("/employees/{id}", response_model=EmployeeResponse)
+def get_employee_by_id(id: int, db: Session = Depends(get_db)):
+    employee = db.query(Employee).filter(Employee.id == id).first()
 
-    if employee:
-        return employee
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
 
-    return {"message": "Employee Not Found"}
+    return employee
 
 
-@app.post("/employee")
-def add_employee(
-    employee: EmployeeCreate,
-    db: Session = Depends(get_db)
-):
+# CREATE EMPLOYEE
+@app.post("/employees", response_model=EmployeeResponse, status_code=201)
+def add_employee(employee: EmployeeCreate, db: Session = Depends(get_db)):
     new_employee = Employee(
         name=employee.name,
         department=employee.department,
@@ -56,20 +51,13 @@ def add_employee(
     return new_employee
 
 
-@app.put("/employee/{id}")
-def update_employee(
-    id: int,
-    employee: EmployeeCreate,
-    db: Session = Depends(get_db)
-):
-    existing_employee = (
-        db.query(Employee)
-        .filter(Employee.id == id)
-        .first()
-    )
+# UPDATE EMPLOYEE
+@app.put("/employees/{id}", response_model=EmployeeResponse)
+def update_employee(id: int, employee: EmployeeCreate, db: Session = Depends(get_db)):
+    existing_employee = db.query(Employee).filter(Employee.id == id).first()
 
     if not existing_employee:
-        return {"message": "Employee Not Found"}
+        raise HTTPException(status_code=404, detail="Employee not found")
 
     existing_employee.name = employee.name
     existing_employee.department = employee.department
@@ -82,23 +70,17 @@ def update_employee(
     return existing_employee
 
 
-@app.delete("/employee/{id}")
-def delete_employee(
-    id: int,
-    db: Session = Depends(get_db)
-):
-    employee = (
-        db.query(Employee)
-        .filter(Employee.id == id)
-        .first()
-    )
+# DELETE EMPLOYEE
+@app.delete("/employees/{id}")
+def delete_employee(id: int, db: Session = Depends(get_db)):
+    employee = db.query(Employee).filter(Employee.id == id).first()
 
     if not employee:
-        return {"message": "Employee Not Found"}
+        raise HTTPException(status_code=404, detail="Employee not found")
 
     db.delete(employee)
     db.commit()
 
-    return {"message": "Employee Deleted Successfully"}
+    return {"message": "Employee deleted successfully"}
 
     

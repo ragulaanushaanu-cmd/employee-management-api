@@ -1,12 +1,21 @@
-from sqlalchemy import create_engine
+import os
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, declarative_base
+from dotenv import load_dotenv
 
-DATABASE_URL = "mysql+pymysql://root:Anusha%401629@localhost:3306/frontend"
+# 1. Load the secret variables from the .env file
+load_dotenv()
 
-engine = create_engine(DATABASE_URL)
+# 2. Grab the DATABASE_URL environment variable
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-with engine.connect() as conn:
-    print("Database connected successfully!")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL not found in your .env file!")
+
+print("FINAL DB URL (Loaded from .env):", DATABASE_URL)
+
+# 3. Create the SQLAlchemy engine
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
 SessionLocal = sessionmaker(
     autocommit=False,
@@ -22,3 +31,11 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# TEST CONNECTION 
+try:
+    with engine.connect() as conn:
+        result = conn.execute(text("SELECT 1"))
+        print("✅ DATABASE CONNECTED SUCCESSFULLY:", result.scalar())
+except Exception as e:
+    print("❌ DATABASE ERROR:", e)
