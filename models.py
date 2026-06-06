@@ -1,21 +1,12 @@
-from pydantic import BaseModel
+from sqlalchemy import Column, Integer, String, Float
+from database import Base
 
-# INPUT MODEL
-class EmployeeCreate(BaseModel):
-    name: str
-    department: str
-    salary: float
-    experience: int
+class Employee(Base):
+    __tablename__ = "employees"
 
-
-# OUTPUT MODEL
-class EmployeeResponse(BaseModel):
-    id: int
-    name: str
-    department: str
-    salary: float
-    experience: int
-
-    class Config:
-        from_attributes = True
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    name = Column(String(100))
+    email = Column(String(100), unique=True, index=True)
+    department = Column(String(100))
+    salary = Column(Float)
 

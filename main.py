@@ -1,86 +1,89 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
 
-from database import engine, get_db, Base
-from database_models import Employee
-from models import EmployeeCreate, EmployeeResponse
+from database import engine, Base, get_db
+import models
+import schemas
 
-app = FastAPI()
-
-# Create tables (OK for learning projects)
+# CREATE TABLES
 Base.metadata.create_all(bind=engine)
 
+app = FastAPI(title="Employee Management API")
 
+
+# ROOT
 @app.get("/")
-def greet():
-    return {"message": "Welcome to FastAPI Employee Management API"}
+def root():
+    return {"message": "Employee Management API is running"}
 
 
-# GET ALL EMPLOYEES
-@app.get("/employees", response_model=List[EmployeeResponse])
-def get_all_employees(db: Session = Depends(get_db)):
-    return db.query(Employee).all()
+# CREATE
+@app.post("/employees/", response_model=schemas.EmployeeResponse, status_code=status.HTTP_201_CREATED)
+def create_employee(employee: schemas.EmployeeCreate, db: Session = Depends(get_db)):
+
+    existing = db.query(models.Employee).filter(models.Employee.email == employee.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already exists")
+
+    new_emp = models.Employee(**employee.dict())
+
+    db.add(new_emp)
+    db.commit()
+    db.refresh(new_emp)
+
+    return new_emp
 
 
-# GET EMPLOYEE BY ID
-@app.get("/employees/{id}", response_model=EmployeeResponse)
-def get_employee_by_id(id: int, db: Session = Depends(get_db)):
-    employee = db.query(Employee).filter(Employee.id == id).first()
+# READ ALL
+@app.get("/employees/", response_model=list[schemas.EmployeeResponse])
+def get_employees(db: Session = Depends(get_db)):
+    return db.query(models.Employee).all()
 
-    if not employee:
+
+# READ BY ID
+@app.get("/employees/{emp_id}", response_model=schemas.EmployeeResponse)
+def get_employee(emp_id: int, db: Session = Depends(get_db)):
+
+    emp = db.query(models.Employee).filter(models.Employee.id == emp_id).first()
+
+    if not emp:
         raise HTTPException(status_code=404, detail="Employee not found")
 
-    return employee
+    return emp
 
 
-# CREATE EMPLOYEE
-@app.post("/employees", response_model=EmployeeResponse, status_code=201)
-def add_employee(employee: EmployeeCreate, db: Session = Depends(get_db)):
-    new_employee = Employee(
-        name=employee.name,
-        department=employee.department,
-        salary=employee.salary,
-        experience=employee.experience
-    )
+# UPDATE
+@app.put("/employees/{emp_id}", response_model=schemas.EmployeeResponse)
+def update_employee(emp_id: int, employee: schemas.EmployeeCreate, db: Session = Depends(get_db)):
 
-    db.add(new_employee)
-    db.commit()
-    db.refresh(new_employee)
+    emp = db.query(models.Employee).filter(models.Employee.id == emp_id).first()
 
-    return new_employee
-
-
-# UPDATE EMPLOYEE
-@app.put("/employees/{id}", response_model=EmployeeResponse)
-def update_employee(id: int, employee: EmployeeCreate, db: Session = Depends(get_db)):
-    existing_employee = db.query(Employee).filter(Employee.id == id).first()
-
-    if not existing_employee:
+    if not emp:
         raise HTTPException(status_code=404, detail="Employee not found")
 
-    existing_employee.name = employee.name
-    existing_employee.department = employee.department
-    existing_employee.salary = employee.salary
-    existing_employee.experience = employee.experience
+    emp.name = employee.name
+    emp.email = employee.email
+    emp.department = employee.department
+    emp.salary = employee.salary
 
     db.commit()
-    db.refresh(existing_employee)
+    db.refresh(emp)
 
-    return existing_employee
+    return emp
 
 
-# DELETE EMPLOYEE
-@app.delete("/employees/{id}")
-def delete_employee(id: int, db: Session = Depends(get_db)):
-    employee = db.query(Employee).filter(Employee.id == id).first()
+# DELETE
+@app.delete("/employees/{emp_id}")
+def delete_employee(emp_id: int, db: Session = Depends(get_db)):
 
-    if not employee:
+    emp = db.query(models.Employee).filter(models.Employee.id == emp_id).first()
+
+    if not emp:
         raise HTTPException(status_code=404, detail="Employee not found")
 
-    db.delete(employee)
+    db.delete(emp)
     db.commit()
 
-    return {"message": "Employee deleted successfully"}
+    return {"message": f"Employee {emp_id} deleted successfully"}
 
     

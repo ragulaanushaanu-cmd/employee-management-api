@@ -15,6 +15,15 @@ if not DATABASE_URL:
 print("FINAL DB URL (Loaded from .env):", DATABASE_URL)
 
 # 3. Create the SQLAlchemy engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker, declarative_base
+import os
+
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "mysql+pymysql://root:Anusha%401629@localhost:3306/frontend"
+)
+
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
 SessionLocal = sessionmaker(
@@ -32,7 +41,7 @@ def get_db():
     finally:
         db.close()
 
-# TEST CONNECTION 
+# TEST CONNECTION (keep for debugging only)
 try:
     with engine.connect() as conn:
         result = conn.execute(text("SELECT 1"))
